@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Dijital Dost",
+    "slug": "dijital-dost-mobil",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Seninle sesli konuşabilmek için mikrofona ihtiyacım var.",
+        "NSSpeechRecognitionUsageDescription": "Sesini anlayabilmek için konuşma tanıma kullanıyorum."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#070a16",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Seninle sesli konuşabilmek için mikrofona ihtiyacım var."
+        }
+      ]
+    ]
+  }
+}
+
