@@ -32,7 +32,7 @@
     },
     "plugins": [
       [
-        "expo-av",
+        "expo-audio",
         {
           "microphonePermission": "Seninle sesli konuşabilmek için mikrofona ihtiyacım var."
         }
