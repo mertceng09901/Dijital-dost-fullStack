@@ -10,7 +10,7 @@ import {
   Animated, StatusBar, Dimensions, Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Audio } from 'expo-av';
+import { AudioRecorder, requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio';
 import { useChatStore, Message } from '../store/chatStore';
 import { useAvatarStore } from '../store/avatarStore';
 import LiveAvatar from '../components/LiveAvatar';
@@ -105,7 +105,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
   const [textMode, setTextMode]   = useState(false); // false = sesli mod
   const [listenState, setListenState] = useState<'idle' | 'listening' | 'recording' | 'processing'>('idle');
   const flatRef = useRef<FlatList>(null);
-  const recRef  = useRef<Audio.Recording | null>(null);
+  const recRef  = useRef<AudioRecorder | null>(null);
   const silenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const monitorInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const glowAnim = useRef(new Animated.Value(0.4)).current;
@@ -153,22 +153,22 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
     if (loading || isSpeaking || isTTSSpeaking) return;
     if (listenState !== 'idle') return;
     try {
-      const { status } = await Audio.requestPermissionsAsync();
+      const { status } = await requestRecordingPermissionsAsync();
       if (status !== 'granted') return;
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      try {
+        await setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      } catch(e) {} // fail silently if not supported on platform
 
-      const rec = new Audio.Recording();
-      await rec.prepareToRecordAsync({
-        ...Audio.RecordingOptionsPresets.HIGH_QUALITY,
-        isMeteringEnabled: true,
-      });
-      await rec.startAsync();
+      const rec = new AudioRecorder({ isMeteringEnabled: true });
+      await rec.prepareToRecordAsync();
+      rec.record();
       recRef.current = rec;
       setListenState('listening');
 
       // Ses seviyesini izle
-      monitorInterval.current = setInterval(async () => {
-        const st = await rec.getStatusAsync();
+      monitorInterval.current = setInterval(() => {
+        if (!recRef.current) return;
+        const st = recRef.current.getStatus();
         if (!st.isRecording) return;
         const db = st.metering ?? -160;
         if (db > VOICE_THRESHOLD) {
@@ -199,8 +199,8 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
       setListenState('processing');
       const rec = recRef.current;
       recRef.current = null;
-      await rec.stopAndUnloadAsync();
-      const uri = rec.getURI();
+      await rec.stop();
+      const uri = rec.uri;
       if (!uri) { setListenState('idle'); return; }
 
       // Sesi base64'e çevir
@@ -233,7 +233,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
     if (monitorInterval.current) { clearInterval(monitorInterval.current); monitorInterval.current = null; }
     if (silenceTimer.current) { clearTimeout(silenceTimer.current); silenceTimer.current = null; }
     if (recRef.current) {
-      recRef.current.stopAndUnloadAsync().catch(() => {});
+      recRef.current.stop().catch(() => {});
       recRef.current = null;
     }
     setListenState('idle');
