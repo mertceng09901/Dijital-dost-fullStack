@@ -6,20 +6,21 @@ import OnboardingScreen from './src/screens/OnboardingScreen';
 import ChatScreen from './src/screens/ChatScreen';
 import AvatarCustomizerScreen from './src/screens/AvatarCustomizerScreen';
 
+import WelcomeScreen from './src/screens/WelcomeScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
+
 const Stack = createNativeStackNavigator();
 
 export default function App() {
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
-        {/* Auth akışı */}
+      <Stack.Navigator initialRouteName="Welcome" screenOptions={{ headerShown: false, animation: 'fade' }}>
+        <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
-        {/* Onboarding - avatar seçimi */}
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-        {/* Ana chat ekranı */}
         <Stack.Screen name="Chat" component={ChatScreen} />
-        {/* Avatar özelleştirici */}
         <Stack.Screen name="AvatarCustomizer" component={AvatarCustomizerScreen} />
+        <Stack.Screen name="Settings" component={SettingsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

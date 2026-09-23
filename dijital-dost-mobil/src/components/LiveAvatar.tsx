@@ -13,6 +13,8 @@ import type {
   OutfitId, OutfitColor, AccessoryId, SkinTone
 } from '../store/avatarStore';
 
+const HUMANS = ['girl', 'boy', 'mother', 'father', 'grandma', 'grandpa'];
+
 // ─── Renk Haritaları ──────────────────────────────────────────────────────────
 const SKIN_MAP: Record<SkinTone, { hi: string; base: string; shadow: string }> = {
   light: { hi: '#fde8c8', base: '#f5c8a0', shadow: '#d4956a' },
@@ -243,7 +245,7 @@ export default function LiveAvatar({
         {/* ════════════════════════════════════════
             KULAKLAR (insan)
         ════════════════════════════════════════ */}
-        {(species === 'girl' || species === 'boy') && (
+        {HUMANS.includes(species) && (
           <G>
             <Ellipse cx="42" cy="122" rx="11" ry="15" fill="url(#sk)" />
             <Ellipse cx="42" cy="122" rx="5" ry="8" fill={skin.shadow} opacity="0.25" />
@@ -316,16 +318,38 @@ export default function LiveAvatar({
 // ════════════════════════════════════════════════════════════════════════
 
 function FaceShape({ species }: { species: AvatarSpecies }) {
-  // Kız = oval yumuşak, Kedi = biraz sivri çene, Tavşan = yuvarlak büyük, Köpek = geniş
   if (species === 'cat')   return <Ellipse cx="110" cy="120" rx="65" ry="70" fill="url(#sk)" />;
   if (species === 'bunny') return <Ellipse cx="110" cy="122" rx="68" ry="72" fill="url(#sk)" />;
   if (species === 'dog')   return <Ellipse cx="110" cy="120" rx="66" ry="70" fill="url(#sk)" />;
-  if (species === 'boy')   return <Ellipse cx="110" cy="116" rx="67" ry="71" fill="url(#sk)" />; // biraz daha köşeli/kısa
-  return <Ellipse cx="110" cy="118" rx="67" ry="73" fill="url(#sk)" />;
+  if (['boy', 'father', 'grandpa'].includes(species)) return (
+    <G>
+      <Ellipse cx="110" cy="116" rx="67" ry="71" fill="url(#sk)" />
+      {(species === 'grandpa') && (
+        <G>
+          {/* Wrinkles */}
+          <Path d="M75 140 Q85 146 95 140" stroke="#000" strokeWidth="1" opacity="0.1" fill="none" />
+          <Path d="M125 140 Q135 146 145 140" stroke="#000" strokeWidth="1" opacity="0.1" fill="none" />
+          <Path d="M95 95 Q110 98 125 95" stroke="#000" strokeWidth="1" opacity="0.1" fill="none" />
+        </G>
+      )}
+    </G>
+  );
+  return (
+    <G>
+      <Ellipse cx="110" cy="118" rx="67" ry="73" fill="url(#sk)" />
+      {(species === 'grandma') && (
+        <G>
+          {/* Wrinkles */}
+          <Path d="M75 140 Q85 146 95 140" stroke="#000" strokeWidth="1" opacity="0.1" fill="none" />
+          <Path d="M125 140 Q135 146 145 140" stroke="#000" strokeWidth="1" opacity="0.1" fill="none" />
+        </G>
+      )}
+    </G>
+  );
 }
 
 function HairBack({ hairStyle, hair, species }: any) {
-  if (species !== 'girl' && species !== 'boy') return null;
+  if (!HUMANS.includes(species)) return null;
   if (hairStyle === 'long') return (
     <G>
       <Path d="M45 115 Q30 175 40 215 Q58 240 82 248" stroke={hair.base} strokeWidth="30" fill="none" strokeLinecap="round" opacity="0.95" />
@@ -352,7 +376,7 @@ function HairBack({ hairStyle, hair, species }: any) {
 }
 
 function HairFront({ hairStyle, hair, species }: any) {
-  if (species !== 'girl' && species !== 'boy') return null;
+  if (!HUMANS.includes(species)) return null;
 
   const shortPath = "M44 112 Q42 60 110 44 Q178 60 176 112 Q158 72 110 68 Q62 72 44 112Z";
   const longPath  = "M44 116 Q42 62 110 46 Q178 62 176 116 Q158 74 110 70 Q62 74 44 116Z";

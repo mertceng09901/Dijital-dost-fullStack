@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 
 // ─── Avatar Karakter Tipleri ───────────────────────────────────────────────────
-export type AvatarSpecies = 'girl' | 'boy' | 'cat' | 'bunny' | 'dog';
+export type AvatarSpecies = 'girl' | 'boy' | 'mother' | 'father' | 'grandma' | 'grandpa' | 'cat' | 'bunny' | 'dog';
+export type AvatarRole = 'friend' | 'teacher';
 
 // ─── Görsel Özellikler ────────────────────────────────────────────────────────
 export type EyeColor    = 'purple' | 'cyan' | 'amber' | 'green' | 'blue';
@@ -25,6 +26,7 @@ interface AvatarState {
 
   // Karakter
   species:     AvatarSpecies;
+  role:        AvatarRole;
   eyeColor:    EyeColor;
   hairStyle:   HairStyle;
   hairColor:   HairColor;
@@ -47,6 +49,7 @@ export const useAvatarStore = create<AvatarState>((set) => ({
   onboardingCompleted: false,
 
   species:     'girl',
+  role:        'friend',
   eyeColor:    'purple',
   hairStyle:   'long',
   hairColor:   'brown',

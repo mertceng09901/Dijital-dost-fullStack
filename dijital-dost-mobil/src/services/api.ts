@@ -86,9 +86,25 @@ export const sendVoiceToBackend = async (
       { audioBase64, mimeType },
       { headers: { Authorization: `Bearer ${token}` } }
     );
-    return { transcript: res.data.transcript, reply: res.data.reply };
+    return { transcript: res.data.transcript, reply: res.data.reply, minutesLeft: res.data.minutesLeft };
   } catch (error: any) {
+    if (error.response?.data?.error === 'LimitReached') {
+      throw new Error('LimitReached');
+    }
     console.warn('Ses gönderilemedi, mock mod:', error.message);
-    return { transcript: 'Sesi anlayamadım', reply: getMockResponse() };
+    return { transcript: 'Sesi anlayamadım', reply: getMockResponse(), minutesLeft: 0 };
+  }
+};
+
+// ─── Sohbet Geçmişi ──────────────────────────────────────────────────────────
+export const fetchHistoryFromBackend = async (token: string) => {
+  try {
+    const res = await api.get('/chat/history', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return res.data.history;
+  } catch (error: any) {
+    console.warn('Geçmiş çekilemedi:', error.message);
+    return [];
   }
 };

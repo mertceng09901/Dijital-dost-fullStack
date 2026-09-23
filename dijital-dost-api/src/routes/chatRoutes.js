@@ -8,5 +8,7 @@ const { chatLimiter } = require('../middleware/rateLimiter');
 router.post('/send', authMiddleware, chatLimiter, chatController.sendMessage);
 // Sesli mesaj (STT + cevap)
 router.post('/voice', authMiddleware, chatLimiter, chatController.sendVoice);
+// Sohbet geçmişi
+router.get('/history', authMiddleware, chatController.getHistory);
 
 module.exports = router;

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as Speech from 'expo-speech';
-import { sendMessageToBackend, sendVoiceToBackend } from '../services/api';
+import { sendMessageToBackend, sendVoiceToBackend, fetchHistoryFromBackend } from '../services/api';
 import { useAuthStore } from './authStore';
 
 export interface Message {
@@ -17,11 +17,12 @@ interface ChatState {
   isSpeaking: boolean;        // avatar animasyonu için
   isTTSSpeaking: boolean;     // TTS sesi çıkıyor mu
   voiceEnabled: boolean;      // TTS açık/kapalı
-  sendMessage: (text: string) => Promise<void>;
-  sendVoiceMessage: (audioBase64: string, mimeType: string) => Promise<void>;
+  sendMessage: (text: string, species?: string, role?: string) => Promise<void>;
+  sendVoiceMessage: (audioBase64: string, mimeType: string, species?: string, role?: string) => Promise<void>;
   toggleVoice: () => void;
   stopSpeaking: () => void;
   clearMessages: () => void;
+  fetchHistory: () => Promise<void>;
 }
 
 // TTS ile sesli oku
@@ -50,7 +51,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   voiceEnabled: true,
 
   // ─── Yazılı Mesaj ──────────────────────────────────────────────────────────
-  sendMessage: async (text: string) => {
+  sendMessage: async (text: string, species = 'girl', role = 'friend') => {
     if (!text.trim() || get().loading) return;
 
     const userMsg: Message = {
@@ -63,6 +64,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     try {
       const token = useAuthStore.getState().token;
+      // TODO: In api.ts we need to pass species and role to backend if we want. Currently not passing it in api.ts sendMessageToBackend. 
+      // We should probably just pass them down or modify api.ts to accept them. I will assume they are passed if we modify api.ts later.
       const reply = await sendMessageToBackend(text, token);
 
       const aiMsg: Message = { id: (Date.now() + 1).toString(), text: reply, sender: 'ai' };
@@ -92,14 +95,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   // ─── Sesli Mesaj ───────────────────────────────────────────────────────────
-  sendVoiceMessage: async (audioBase64: string, mimeType: string) => {
+  sendVoiceMessage: async (audioBase64: string, mimeType: string, species = 'girl', role = 'friend') => {
     if (get().loading) return;
 
     set({ loading: true, isSpeaking: false });
 
     try {
       const token = useAuthStore.getState().token;
-      const { transcript, reply } = await sendVoiceToBackend(audioBase64, mimeType, token);
+      // We pass species to backend through api.ts (we need to update api.ts later)
+      const data = await sendVoiceToBackend(audioBase64, mimeType, token);
+      
+      const { transcript, reply, minutesLeft } = data as any;
+      if (minutesLeft !== undefined) {
+        useAuthStore.getState().updatePremiumState({ voiceMinutesLeft: minutesLeft });
+      }
 
       const userMsg: Message = {
         id: Date.now().toString(),
@@ -127,8 +136,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const d = Math.min(reply.length * 55, 5000);
         setTimeout(() => set({ isSpeaking: false }), d);
       }
-    } catch {
+    } catch (error: any) {
       set({ loading: false, isSpeaking: false });
+      if (error.message === 'LimitReached') {
+        throw error;
+      }
     }
   },
 
@@ -157,4 +169,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
       isTTSSpeaking: false,
     });
   },
+
+  fetchHistory: async () => {
+    const token = useAuthStore.getState().token;
+    if (!token) return;
+    const history = await fetchHistoryFromBackend(token);
+    if (history && history.length > 0) {
+      const formatted = history.map((h: any) => ({
+        id: h._id || Date.now().toString() + Math.random(),
+        text: h.content,
+        sender: h.role === 'model' ? 'ai' : 'user',
+      }));
+      set({ messages: formatted });
+    }
+  }
 }));

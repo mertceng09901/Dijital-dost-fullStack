@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LiveAvatar from '../components/LiveAvatar';
+import { useAuthStore } from '../store/authStore';
 import {
   useAvatarStore,
   AvatarSpecies, EyeColor, HairStyle, HairColor,
@@ -28,9 +29,13 @@ const THEME = {
 const CATEGORIES = ['Karakter', 'Saç', 'Kıyafet', 'Aksesuar', 'Arka Plan'] as const;
 type Category = typeof CATEGORIES[number];
 
-const CHARACTER_OPTIONS: { val: AvatarSpecies; label: string; emoji: string; desc: string }[] = [
+const CHARACTER_OPTIONS: { val: AvatarSpecies; label: string; emoji: string; desc: string; isPremium?: boolean }[] = [
   { val: 'girl',   label: 'Kız',    emoji: '👧', desc: 'Sevimli kız karakter' },
   { val: 'boy',    label: 'Erkek',  emoji: '👦', desc: 'Sevimli erkek karakter' },
+  { val: 'mother', label: 'Anne',   emoji: '👩', desc: 'Şefkatli anne', isPremium: true },
+  { val: 'father', label: 'Baba',   emoji: '👨', desc: 'Güven veren baba', isPremium: true },
+  { val: 'grandma',label: 'Nene',   emoji: '👵', desc: 'Tonton büyükanne', isPremium: true },
+  { val: 'grandpa',label: 'Dede',   emoji: '👴', desc: 'Tecrübeli büyükbaba', isPremium: true },
   { val: 'cat',    label: 'Kedi',   emoji: '🐱', desc: 'Kedi kulaklı karakter' },
   { val: 'bunny',  label: 'Tavşan', emoji: '🐰', desc: 'Tavşan kulaklı karakter' },
   { val: 'dog',    label: 'Köpek',  emoji: '🐶', desc: 'Köpek kulaklı karakter' },
@@ -123,13 +128,19 @@ function Chip({ label, emoji, color, selected, onPress }: {
 }
 
 // ─── Büyük Karakter Kartı ─────────────────────────────────────────────────────
-function CharCard({ val, label, emoji, desc, selected, onPress }: any) {
+function CharCard({ val, label, emoji, desc, isPremium, selected, isUserPremium, onPress }: any) {
+  const locked = isPremium && !isUserPremium;
   return (
-    <TouchableOpacity style={[st.charCard, selected && st.charCardOn]} onPress={onPress} activeOpacity={0.8}>
+    <TouchableOpacity 
+      style={[st.charCard, selected && st.charCardOn, locked && { opacity: 0.6 }]} 
+      onPress={locked ? undefined : onPress} 
+      activeOpacity={locked ? 1 : 0.8}
+    >
       <Text style={st.charEmoji}>{emoji}</Text>
       <Text style={[st.charLabel, selected && st.charLabelOn]}>{label}</Text>
       <Text style={st.charDesc}>{desc}</Text>
       {selected && <View style={st.checkBadge}><Text style={st.checkTxt}>✓</Text></View>}
+      {locked && <View style={st.lockBadge}><Text style={st.lockTxt}>👑</Text></View>}
     </TouchableOpacity>
   );
 }
@@ -157,6 +168,7 @@ export default function AvatarCustomizerScreen({ navigation }: { navigation: any
     skinTone,
     setAvatarConfig,
   } = useAvatarStore();
+  const { isPremium } = useAuthStore();
 
   const pulse = () => {
     Animated.sequence([
@@ -231,7 +243,7 @@ export default function AvatarCustomizerScreen({ navigation }: { navigation: any
             <Text style={st.sectionTitle}>Karakter Tipi</Text>
             <View style={st.charGrid}>
               {CHARACTER_OPTIONS.map(o => (
-                <CharCard key={o.val} {...o} selected={species === o.val} onPress={() => update({ species: o.val })} />
+                <CharCard key={o.val} {...o} selected={species === o.val} isUserPremium={isPremium} onPress={() => update({ species: o.val })} />
               ))}
             </View>
             <Text style={st.sectionTitle}>Ten Rengi</Text>
@@ -367,6 +379,8 @@ const st = StyleSheet.create({
   charDesc: { color: THEME.dim, fontSize: 11, textAlign: 'center' },
   checkBadge: { position: 'absolute', top: 10, right: 10, width: 22, height: 22, borderRadius: 11, backgroundColor: THEME.accent, alignItems: 'center', justifyContent: 'center' },
   checkTxt: { color: '#fff', fontSize: 13, fontWeight: '900' },
+  lockBadge: { position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 12, padding: 4 },
+  lockTxt: { fontSize: 12 },
 
   bgGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   bgCard: { width: (W - 52) / 3, backgroundColor: THEME.card, borderRadius: 16, borderWidth: 1, borderColor: THEME.border, overflow: 'hidden', position: 'relative' },

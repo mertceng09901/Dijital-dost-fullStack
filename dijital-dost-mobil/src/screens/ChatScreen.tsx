@@ -7,7 +7,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   StyleSheet, Text, View, TextInput, TouchableOpacity,
   FlatList, KeyboardAvoidingView, Platform,
-  Animated, StatusBar, Dimensions,
+  Animated, StatusBar, Dimensions, Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
@@ -110,8 +110,12 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
   const monitorInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const glowAnim = useRef(new Animated.Value(0.4)).current;
 
-  const { messages, loading, isSpeaking, isTTSSpeaking, voiceEnabled, sendMessage, sendVoiceMessage, toggleVoice, stopSpeaking } = useChatStore();
-  const { friendName, species, eyeColor, hairStyle, hairColor, outfitId, outfitColor, accessory } = useAvatarStore();
+  const { messages, loading, isSpeaking, isTTSSpeaking, voiceEnabled, sendMessage, sendVoiceMessage, toggleVoice, stopSpeaking, fetchHistory } = useChatStore();
+  const { friendName, species, role, eyeColor, hairStyle, hairColor, outfitId, outfitColor, accessory } = useAvatarStore();
+
+  useEffect(() => {
+    fetchHistory();
+  }, []);
 
   // ── Glow animasyonu ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -203,17 +207,27 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
       const resp = await fetch(uri);
       const blob = await resp.blob();
       const reader = new FileReader();
-      reader.onloadend = () => {
+      reader.onloadend = async () => {
         const base64 = (reader.result as string).split(',')[1];
-        sendVoiceMessage(base64, 'audio/m4a');
         setListenState('idle');
+        try {
+          await sendVoiceMessage(base64, 'audio/m4a', species, role);
+        } catch (err: any) {
+          if (err.message === 'LimitReached') {
+            Alert.alert('Sesli Konuşma Limiti', 'Günlük limitin doldu.', [
+              { text: 'Ayarlara Git', onPress: () => navigation.navigate('Settings') },
+              { text: 'Kapat', style: 'cancel' }
+            ]);
+            setTextMode(true);
+          }
+        }
       };
       reader.readAsDataURL(blob);
     } catch (e) {
       console.error('Kayıt bitmedi:', e);
       setListenState('idle');
     }
-  }, [sendVoiceMessage]);
+  }, [sendVoiceMessage, species, role, navigation]);
 
   const stopListening = useCallback(() => {
     if (monitorInterval.current) { clearInterval(monitorInterval.current); monitorInterval.current = null; }
@@ -227,7 +241,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
 
   const handleSend = () => {
     if (!inputText.trim() || loading) return;
-    sendMessage(inputText.trim());
+    sendMessage(inputText.trim(), species, role);
     setInputText('');
   };
 
@@ -260,6 +274,9 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
           </TouchableOpacity>
           <TouchableOpacity style={s.hBtn} onPress={() => navigation.navigate('AvatarCustomizer')}>
             <Text style={s.hBtnTxt}>✦</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.hBtn} onPress={() => navigation.navigate('Settings')}>
+            <Text style={s.hBtnTxt}>⚙️</Text>
           </TouchableOpacity>
         </View>
       </View>
