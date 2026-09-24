@@ -12,9 +12,11 @@ interface AvatarState {
 
   modelUrl:   string;
   accessory:  AccessoryType;
+  outfit:     string;
 
   setModelUrl:    (url: string) => void;
   setAccessory:   (acc: AccessoryType) => void;
+  setOutfit:      (outfit: string) => void;
   setSceneItem:   (key: string, value: string) => void;
   setAvatarConfig: (config: Partial<AvatarState>) => void;
 }
@@ -28,9 +30,11 @@ export const useAvatarStore = create<AvatarState>((set) => ({
   // Yüzü net görünen, tam boy çalışan aktif GLB
   modelUrl: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb',
   accessory: 'none',
+  outfit: 'k1',
 
   setModelUrl:  (url) => set({ modelUrl: url }),
   setAccessory: (acc) => set({ accessory: acc }),
+  setOutfit:    (o) => set({ outfit: o }),
 
   // Geriye dönük uyumluluk (OnboardingScreen, Avatar3DStudioScreen kullanır)
   setSceneItem: (key, value) => {
