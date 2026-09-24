@@ -1,73 +1,51 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-  TouchableOpacity,
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StatusBar,
+  StyleSheet, Text, View, TextInput, TouchableOpacity,
+  KeyboardAvoidingView, Platform, ScrollView, Animated,
+  StatusBar, SafeAreaView, Dimensions, ImageBackground
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
+import { SCENE_CATALOG } from '../data/sceneCatalog';
 import LiveAvatar from '../components/LiveAvatar';
+import { colors, typography, spacing, radius } from '../theme/tokens';
 
-const THEME = {
-  bg: '#080b18',
-  bgCard: 'rgba(255,255,255,0.05)',
-  accent: '#8b7cf8',
-  accentDark: '#5b3de8',
-  accentGlow: 'rgba(139,124,248,0.15)',
-  textPrimary: '#e8e0ff',
-  textMuted: '#9d94c4',
-  textDim: '#4b5280',
-  border: 'rgba(139,124,248,0.2)',
-  inputBg: 'rgba(255,255,255,0.06)',
-  error: '#f87171',
-};
+const { width, height } = Dimensions.get('window');
 
 type AuthMode = 'login' | 'register';
 
-export default function LoginScreen({ navigation }: { navigation: any }) {
+export default function LoginScreen({ navigation }: any) {
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const { login, register, isLoading, error, clearError } = useAuthStore();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const tabSlide = useRef(new Animated.Value(0)).current;
-  const logoScale = useRef(new Animated.Value(0.8)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, tension: 60, friction: 10, useNativeDriver: true }),
-      Animated.spring(logoScale, { toValue: 1, tension: 80, friction: 8, useNativeDriver: true }),
-    ]).start(() => {
-      // Avatar karşılama animasyonu
-      setIsSpeaking(true);
-      setTimeout(() => setIsSpeaking(false), 2500);
-    });
+      Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, tension: 50, friction: 8, useNativeDriver: true }),
+    ]).start();
   }, []);
 
-  const switchMode = (newMode: AuthMode) => {
-    if (newMode === mode) return;
+  const switchMode = () => {
     clearError();
-    Animated.timing(tabSlide, {
-      toValue: newMode === 'login' ? 0 : 1,
-      duration: 250,
-      useNativeDriver: false,
-    }).start();
-    setMode(newMode);
+    setMode(mode === 'login' ? 'register' : 'login');
+  };
+
+  const triggerShake = () => {
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 8, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 6, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -6, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
+    ]).start();
   };
 
   const handleSubmit = async () => {
@@ -94,386 +72,159 @@ export default function LoginScreen({ navigation }: { navigation: any }) {
     }
   };
 
-  const triggerShake = () => {
-    Animated.sequence([
-      Animated.timing(shakeAnim, { toValue: 8, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 6, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -6, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
-    ]).start();
+  const themeColors = {
+    cardBg: 'rgba(255, 252, 248, 0.95)',
+    primary: '#8B5E3C',     
+    secondary: '#5C8A5C',   
+    accent: '#F5A623',      
+    textDark: '#4A4A4A',
+    textDim: '#8B8B8B',
+    border: '#E8DFD8',
+    inputBg: 'rgba(245, 241, 234, 0.8)'
   };
 
-  const tabIndicatorLeft = tabSlide.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['2%', '52%'],
-  });
-
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={THEME.bg} />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <View style={s.container}>
+      <ImageBackground 
+        source={{ uri: SCENE_CATALOG.room.imageUrl }} 
+        style={StyleSheet.absoluteFill}
+        resizeMode="cover"
+        blurRadius={8}
       >
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* ── LOGO & AVATAR ── */}
-          <Animated.View
-            style={[
-              styles.heroSection,
-              { opacity: fadeAnim, transform: [{ scale: logoScale }] },
-            ]}
-          >
-            {/* Arka plan halkaları */}
-            <View style={styles.ringOuter} />
-            <View style={styles.ringInner} />
+        <View style={{ ...StyleSheet.absoluteFill, backgroundColor: 'rgba(139, 94, 60, 0.3)' }} />
+      </ImageBackground>
 
-            <LiveAvatar
-              size={140}
-              species="girl"
-              eyeColor="purple"
-              hairStyle="short"
-              hairColor="blue"
-              outfitColor="purple"
-              outfitId="formal"
-              accessory="none"
-              isSpeaking={isSpeaking}
-              showGlow={true}
-            />
-            <Text style={styles.appName}>Dijital Dost</Text>
-            <Text style={styles.appTagline}>Seninle, her an.</Text>
-          </Animated.View>
-
-          {/* ── FORM KARTI ── */}
-          <Animated.View
-            style={[
-              styles.card,
-              {
-                opacity: fadeAnim,
-                transform: [
-                  { translateY: slideAnim },
-                  { translateX: shakeAnim },
-                ],
-              },
-            ]}
-          >
-            {/* ── SEKMELER ── */}
-            <View style={styles.tabContainer}>
-              <Animated.View
-                style={[styles.tabIndicator, { left: tabIndicatorLeft }]}
-              />
-              <TouchableOpacity
-                style={styles.tab}
-                onPress={() => switchMode('login')}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.tabText, mode === 'login' && styles.tabTextActive]}>
-                  Giriş Yap
+      <SafeAreaView style={{ flex: 1 }}>
+        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            
+            <Animated.View style={[
+              s.card,
+              { backgroundColor: themeColors.cardBg },
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }, { translateX: shakeAnim }] }
+            ]}>
+              
+              <View style={s.headerArea}>
+                <View style={s.avatarWrap}>
+                  <LiveAvatar size={80} hideScene={true} rounded={true} />
+                </View>
+                <Text style={[s.title, { color: themeColors.textDark }]}>
+                  {mode === 'login' ? 'Dostun seni bekliyor!' : 'Aramıza Katıl!'}
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.tab}
-                onPress={() => switchMode('register')}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.tabText, mode === 'register' && styles.tabTextActive]}>
-                  Kayıt Ol
+                <Text style={[s.subtitle, { color: themeColors.textDim }]}>
+                  {mode === 'login' ? 'Kaldığımız yerden devam edelim.' : 'Kendi dijital dostunu yaratmak için ilk adımı at.'}
                 </Text>
-              </TouchableOpacity>
-            </View>
+              </View>
 
-            {/* ── GİRİŞ ALANLARI ── */}
-            <View style={styles.fields}>
-              {mode === 'register' && (
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>İsmin</Text>
+              {error ? (
+                <View style={s.errorBox}>
+                  <Text style={s.errorText}>{error}</Text>
+                </View>
+              ) : null}
+
+              <View style={s.form}>
+                {mode === 'register' && (
+                  <View style={s.inputRow}>
+                    <Text style={[s.label, { color: themeColors.primary }]}>İsim</Text>
+                    <TextInput
+                      style={[s.input, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.textDark }]}
+                      placeholder="Nasıl hitap edelim?"
+                      placeholderTextColor={themeColors.textDim}
+                      value={name}
+                      onChangeText={setName}
+                    />
+                  </View>
+                )}
+
+                <View style={s.inputRow}>
+                  <Text style={[s.label, { color: themeColors.primary }]}>E-Posta</Text>
                   <TextInput
-                    style={styles.input}
-                    placeholder="Adın ne?"
-                    placeholderTextColor={THEME.textDim}
-                    value={name}
-                    onChangeText={setName}
-                    autoCapitalize="words"
-                    returnKeyType="next"
+                    style={[s.input, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.textDark }]}
+                    placeholder="ornek@email.com"
+                    placeholderTextColor={themeColors.textDim}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    value={email}
+                    onChangeText={setEmail}
                   />
                 </View>
-              )}
 
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>E-posta</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="ornek@mail.com"
-                  placeholderTextColor={THEME.textDim}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="next"
-                />
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Şifre</Text>
-                <View style={styles.passwordRow}>
-                  <TextInput
-                    style={[styles.input, styles.passwordInput]}
-                    placeholder="••••••••"
-                    placeholderTextColor={THEME.textDim}
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPassword}
-                    returnKeyType="done"
-                    onSubmitEditing={handleSubmit}
-                  />
-                  <TouchableOpacity
-                    style={styles.eyeBtn}
-                    onPress={() => setShowPassword(!showPassword)}
-                  >
-                    <Text style={styles.eyeBtnText}>{showPassword ? '🙈' : '👁️'}</Text>
-                  </TouchableOpacity>
+                <View style={s.inputRow}>
+                  <Text style={[s.label, { color: themeColors.primary }]}>Şifre</Text>
+                  <View style={s.pwdWrapper}>
+                    <TextInput
+                      style={[s.input, s.inputPwd, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.textDark }]}
+                      placeholder="••••••••"
+                      placeholderTextColor={themeColors.textDim}
+                      secureTextEntry={!showPassword}
+                      value={password}
+                      onChangeText={setPassword}
+                    />
+                    <TouchableOpacity style={s.eyeBtn} onPress={() => setShowPassword(!showPassword)}>
+                      <Text style={{ fontSize: 16 }}>{showPassword ? '🙈' : '👁️'}</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
+
+                <TouchableOpacity
+                  style={[s.btn, { backgroundColor: themeColors.primary }]}
+                  onPress={handleSubmit}
+                  disabled={isLoading}
+                >
+                  <Text style={s.btnTxt}>{isLoading ? 'Bekle...' : (mode === 'login' ? 'Giriş Yap' : 'Kayıt Ol')}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={s.linkBtn} onPress={switchMode}>
+                  <Text style={[s.linkTxt, { color: themeColors.secondary }]}>
+                    {mode === 'login' ? 'Hesabın yok mu? Kayıt ol.' : 'Zaten üyesin? Giriş yap.'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={s.guestBtn} onPress={() => navigation.replace('Welcome')}>
+                  <Text style={[s.guestTxt, { color: themeColors.textDim }]}>Misafir olarak devam et</Text>
+                </TouchableOpacity>
               </View>
-            </View>
 
-            {/* ── HATA MESAJI ── */}
-            {error ? (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>⚠ {error}</Text>
-              </View>
-            ) : null}
+            </Animated.View>
 
-            {/* ── GÖNDER BUTONU ── */}
-            <TouchableOpacity
-              style={[styles.submitBtn, isLoading && styles.submitBtnLoading]}
-              onPress={handleSubmit}
-              activeOpacity={0.85}
-              disabled={isLoading}
-            >
-              <Text style={styles.submitBtnText}>
-                {isLoading
-                  ? 'Bekle...'
-                  : mode === 'login'
-                  ? 'Giriş Yap →'
-                  : 'Hesap Oluştur →'}
-              </Text>
-            </TouchableOpacity>
-
-            {/* ── MISAFIR GİRİŞİ ── */}
-            <TouchableOpacity
-              style={styles.guestBtn}
-              onPress={() => navigation.replace('Onboarding')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.guestBtnText}>Hesap olmadan devam et</Text>
-            </TouchableOpacity>
-          </Animated.View>
-
-          {/* Alt boşluk */}
-          <View style={{ height: 32 }} />
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: THEME.bg,
-  },
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    alignItems: 'center',
-  },
-
-  // Hero
-  heroSection: {
-    alignItems: 'center',
-    marginBottom: 32,
-    position: 'relative',
-  },
-  ringOuter: {
-    position: 'absolute',
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    borderWidth: 1,
-    borderColor: 'rgba(139,124,248,0.12)',
-    top: -20,
-  },
-  ringInner: {
-    position: 'absolute',
-    width: 170,
-    height: 170,
-    borderRadius: 85,
-    borderWidth: 1,
-    borderColor: 'rgba(139,124,248,0.08)',
-    top: 5,
-  },
-  appName: {
-    color: THEME.textPrimary,
-    fontSize: 30,
-    fontWeight: '900',
-    letterSpacing: -0.8,
-    marginTop: 8,
-  },
-  appTagline: {
-    color: THEME.textMuted,
-    fontSize: 14,
-    marginTop: 4,
-  },
-
-  // Kart
+const s = StyleSheet.create({
+  container: { flex: 1 },
+  scroll: { flexGrow: 1, justifyContent: 'center', padding: spacing.xl },
   card: {
-    width: '100%',
-    backgroundColor: THEME.bgCard,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: THEME.border,
-    padding: 24,
-    shadowColor: '#8b7cf8',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 8,
-  },
-
-  // Sekmeler
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    borderRadius: 16,
-    padding: 4,
-    marginBottom: 24,
-    position: 'relative',
-  },
-  tabIndicator: {
-    position: 'absolute',
-    top: 4,
-    width: '46%',
-    height: '85%',
-    backgroundColor: THEME.accent,
-    borderRadius: 12,
-    shadowColor: THEME.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 10,
+    borderRadius: radius.xl, padding: spacing.xl, paddingTop: spacing.xxl,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
     alignItems: 'center',
-    zIndex: 1,
   },
-  tabText: {
-    color: THEME.textMuted,
-    fontSize: 14,
-    fontWeight: '600',
+  headerArea: { alignItems: 'center', marginBottom: spacing.xl },
+  avatarWrap: { 
+    width: 86, height: 86, borderRadius: 43, backgroundColor: '#fff', 
+    alignItems: 'center', justifyContent: 'center', 
+    shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 8, elevation: 4,
+    marginBottom: spacing.md, marginTop: -60,
   },
-  tabTextActive: {
-    color: '#fff',
-    fontWeight: '800',
-  },
-
-  // Alanlar
-  fields: {
-    gap: 16,
-    marginBottom: 16,
-  },
-  fieldGroup: {
-    gap: 6,
-  },
-  fieldLabel: {
-    color: THEME.textMuted,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    marginLeft: 4,
-  },
-  input: {
-    backgroundColor: THEME.inputBg,
-    borderWidth: 1,
-    borderColor: THEME.border,
-    borderRadius: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    color: THEME.textPrimary,
-    fontSize: 15,
-  },
-  passwordRow: {
-    position: 'relative',
-  },
-  passwordInput: {
-    paddingRight: 52,
-  },
-  eyeBtn: {
-    position: 'absolute',
-    right: 14,
-    top: 12,
-  },
-  eyeBtnText: {
-    fontSize: 18,
-  },
-
-  // Hata
-  errorBox: {
-    backgroundColor: 'rgba(248,113,113,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(248,113,113,0.3)',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-  },
-  errorText: {
-    color: THEME.error,
-    fontSize: 13,
-    textAlign: 'center',
-  },
-
-  // Gönder
-  submitBtn: {
-    backgroundColor: THEME.accent,
-    borderRadius: 18,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 4,
-    shadowColor: THEME.accent,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 14,
-    elevation: 8,
-  },
-  submitBtnLoading: {
-    backgroundColor: 'rgba(139,124,248,0.5)',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  submitBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-  },
-
-  // Misafir
-  guestBtn: {
-    marginTop: 16,
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  guestBtnText: {
-    color: THEME.textDim,
-    fontSize: 13,
-    textDecorationLine: 'underline',
-  },
+  title: { fontSize: 24, fontWeight: '800', marginBottom: 4 },
+  subtitle: { fontSize: 13, fontWeight: '500', textAlign: 'center' },
+  errorBox: { width: '100%', backgroundColor: 'rgba(255, 100, 100, 0.1)', padding: 12, borderRadius: radius.md, marginBottom: spacing.md, borderWidth: 1, borderColor: 'rgba(255, 100, 100, 0.3)' },
+  errorText: { color: '#D32F2F', fontSize: 12, textAlign: 'center', fontWeight: '600' },
+  form: { width: '100%' },
+  inputRow: { marginBottom: spacing.md },
+  label: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', marginBottom: 6, marginLeft: 4, letterSpacing: 0.5 },
+  input: { borderWidth: 1, borderRadius: radius.lg, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, fontWeight: '500' },
+  pwdWrapper: { position: 'relative', justifyContent: 'center' },
+  inputPwd: { paddingRight: 45 },
+  eyeBtn: { position: 'absolute', right: 14, top: 12 },
+  btn: { width: '100%', paddingVertical: 16, borderRadius: radius.lg, alignItems: 'center', marginTop: spacing.sm, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 6, elevation: 4 },
+  btnTxt: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  linkBtn: { marginTop: spacing.lg, alignItems: 'center' },
+  linkTxt: { fontSize: 14, fontWeight: '700' },
+  guestBtn: { marginTop: spacing.xl, alignItems: 'center' },
+  guestTxt: { fontSize: 13, textDecorationLine: 'underline' }
 });

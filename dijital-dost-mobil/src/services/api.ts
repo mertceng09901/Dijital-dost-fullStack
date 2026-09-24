@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 // ─── Ağ Adresi ─────────────────────────────────────────────────────────────────
-// Android emülatör: 10.0.2.2  |  Fiziksel cihaz: bilgisayarın yerel IP'si
-const API_URL = 'http://10.0.2.2:5000/api';
+// Fiziksel cihaz bağlantısı için yerel IPv4 adresi
+const API_URL = 'http://192.168.8.12:5000/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -75,7 +75,7 @@ export const sendVoiceToBackend = async (
   audioBase64: string,
   mimeType: string,
   token?: string | null
-): Promise<{ transcript: string; reply: string }> => {
+): Promise<{ transcript: string; reply: string; minutesLeft?: number }> => {
   if (!token) {
     await new Promise((r) => setTimeout(r, 1200));
     return { transcript: '(Misafir mod — ses tanıma devre dışı)', reply: getMockResponse() };
@@ -86,13 +86,13 @@ export const sendVoiceToBackend = async (
       { audioBase64, mimeType },
       { headers: { Authorization: `Bearer ${token}` } }
     );
-    return { transcript: res.data.transcript, reply: res.data.reply, minutesLeft: res.data.minutesLeft };
+    return { transcript: res.data.transcript, reply: res.data.reply, minutesLeft: res.data.minutesLeft as number | undefined };
   } catch (error: any) {
     if (error.response?.data?.error === 'LimitReached') {
       throw new Error('LimitReached');
     }
     console.warn('Ses gönderilemedi, mock mod:', error.message);
-    return { transcript: 'Sesi anlayamadım', reply: getMockResponse(), minutesLeft: 0 };
+    return { transcript: 'Sesi anlayamadım', reply: getMockResponse(), minutesLeft: 0 as number | undefined };
   }
 };
 
@@ -108,3 +108,5 @@ export const fetchHistoryFromBackend = async (token: string) => {
     return [];
   }
 };
+
+export { api };

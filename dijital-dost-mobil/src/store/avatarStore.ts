@@ -1,68 +1,42 @@
 import { create } from 'zustand';
 
-// ─── Avatar Karakter Tipleri ───────────────────────────────────────────────────
-export type AvatarSpecies = 'girl' | 'boy' | 'mother' | 'father' | 'grandma' | 'grandpa' | 'cat' | 'bunny' | 'dog';
-export type AvatarRole = 'friend' | 'teacher';
-
-// ─── Görsel Özellikler ────────────────────────────────────────────────────────
-export type EyeColor    = 'purple' | 'cyan' | 'amber' | 'green' | 'blue';
-export type HairStyle   = 'long' | 'short' | 'curly' | 'bun' | 'twin';
-export type HairColor   = 'black' | 'brown' | 'blonde' | 'pink' | 'white' | 'blue';
-export type OutfitId    = 'casual' | 'sport' | 'formal' | 'cute' | 'hoodie';
-export type OutfitColor = 'purple' | 'navy' | 'teal' | 'rose' | 'mint' | 'orange';
-export type AccessoryId = 'none' | 'glasses' | 'sunglasses' | 'headphones' | 'crown' | 'bow' | 'hat';
-export type BackgroundId= 'room' | 'park' | 'beach' | 'cafe' | 'space' | 'forest' | 'city';
-
-// Legacy compat
-export type SkinTone     = 'light' | 'medium' | 'dark' | 'cosmic';
-export type CharacterType= 'ablacik' | 'abi' | 'notr';
-export type OutfitStyle  = OutfitId;
-export type AccessoryType= AccessoryId;
+export type AvatarSpecies = 'girl' | 'boy' | 'cat' | 'bunny' | 'dog';
+export type AvatarRole = 'friend' | 'mentor' | 'therapist';
+export type AccessoryType = 'none' | 'hat' | 'glasses';
 
 interface AvatarState {
-  // Kimlik
-  friendName: string;
+  friendName:          string;
   onboardingCompleted: boolean;
+  species:             AvatarSpecies;
+  role:                AvatarRole;
 
-  // Karakter
-  species:     AvatarSpecies;
-  role:        AvatarRole;
-  eyeColor:    EyeColor;
-  hairStyle:   HairStyle;
-  hairColor:   HairColor;
-  outfitId:    OutfitId;
-  outfitColor: OutfitColor;
-  accessory:   AccessoryId;
-  background:  BackgroundId;
+  modelUrl:   string;
+  accessory:  AccessoryType;
 
-  // Legacy
-  characterType: CharacterType;
-  gender:      'erkek' | 'kadin';
-  skinTone:    SkinTone;
-  outfitStyle: OutfitId;
-
-  setAvatarConfig: (config: Partial<Omit<AvatarState, 'setAvatarConfig'>>) => void;
+  setModelUrl:    (url: string) => void;
+  setAccessory:   (acc: AccessoryType) => void;
+  setSceneItem:   (key: string, value: string) => void;
+  setAvatarConfig: (config: Partial<AvatarState>) => void;
 }
 
 export const useAvatarStore = create<AvatarState>((set) => ({
-  friendName:  'Teramer',
+  friendName:          'Teramer',
   onboardingCompleted: false,
+  species:             'girl',
+  role:                'friend',
 
-  species:     'girl',
-  role:        'friend',
-  eyeColor:    'purple',
-  hairStyle:   'long',
-  hairColor:   'brown',
-  outfitId:    'casual',
-  outfitColor: 'purple',
-  accessory:   'none',
-  background:  'room',
+  // Yüzü net görünen, tam boy çalışan aktif GLB
+  modelUrl: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb',
+  accessory: 'none',
 
-  // Legacy
-  characterType: 'ablacik',
-  gender:        'kadin',
-  skinTone:      'medium',
-  outfitStyle:   'casual',
+  setModelUrl:  (url) => set({ modelUrl: url }),
+  setAccessory: (acc) => set({ accessory: acc }),
+
+  // Geriye dönük uyumluluk (OnboardingScreen, Avatar3DStudioScreen kullanır)
+  setSceneItem: (key, value) => {
+    if (key === 'modelUrl') set({ modelUrl: value });
+    if (key === 'accessory') set({ accessory: value as AccessoryType });
+  },
 
   setAvatarConfig: (config) => set((state) => ({ ...state, ...config })),
 }));

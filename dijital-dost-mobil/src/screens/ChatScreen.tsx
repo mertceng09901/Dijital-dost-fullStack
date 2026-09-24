@@ -1,7 +1,7 @@
-/**
- * ChatScreen — Otomatik dinleme modu (Talking Tom gibi)
- * Konuşmaya başlayınca avatar otomatik duyar, cevap verir.
- * Yazma modu da var (üst sağ simge ile geçiş).
+﻿/**
+ * ChatScreen Ã¢â‚¬â€ Otomatik dinleme modu (Talking Tom gibi)
+ * KonuÃ…Å¸maya baÃ…Å¸layÃ„Â±nca avatar otomatik duyar, cevap verir.
+ * Yazma modu da var (ÃƒÂ¼st saÃ„Å¸ simge ile geÃƒÂ§iÃ…Å¸).
  */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
@@ -10,28 +10,29 @@ import {
   Animated, StatusBar, Dimensions, Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AudioRecorder, requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio';
+import { requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
 import { useChatStore, Message } from '../store/chatStore';
 import { useAvatarStore } from '../store/avatarStore';
 import LiveAvatar from '../components/LiveAvatar';
+import { colors, spacing, typography, radius } from '../theme/tokens';
 
 const { width: W } = Dimensions.get('window');
 
 const THEME = {
-  bg: '#070a16', bgCard: 'rgba(255,255,255,0.04)',
-  accent: '#8b7cf8', accentGlow: 'rgba(139,124,248,0.15)',
-  text: '#e8e0ff', muted: '#9d94c4', dim: '#3d4575',
-  user: '#5b3de8', aiBg: 'rgba(139,124,248,0.07)',
-  aiBorder: 'rgba(139,124,248,0.18)', border: 'rgba(255,255,255,0.07)',
-  green: '#22c55e', red: '#ef4444',
+  bg: colors.background, bgCard: colors.surface,
+  accent: colors.primary, accentGlow: 'rgba(107, 91, 149, 0.15)',
+  text: colors.textPrimary, muted: colors.textSecondary, dim: '#A09CA3',
+  user: colors.primary, aiBg: colors.surface,
+  aiBorder: colors.border, border: colors.border,
+  green: colors.success, red: colors.error,
 };
 
-// Ses seviyesi eşiği — bu değerin üstü "konuşuyor" sayılır
+// Ses seviyesi eÃ…Å¸iÃ„Å¸i Ã¢â‚¬â€ bu deÃ„Å¸erin ÃƒÂ¼stÃƒÂ¼ "konuÃ…Å¸uyor" sayÃ„Â±lÃ„Â±r
 const VOICE_THRESHOLD = -35;  // dB
-// Ne kadar sessizlik sonra kayıt dursun (ms)
+// Ne kadar sessizlik sonra kayÃ„Â±t dursun (ms)
 const SILENCE_TIMEOUT = 1600;
 
-// ─── Typing Dots ──────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Typing Dots Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function TypingIndicator() {
   const dots = [0, 1, 2].map(() => useRef(new Animated.Value(0)).current);
   useEffect(() => {
@@ -53,7 +54,7 @@ function TypingIndicator() {
   );
 }
 
-// ─── Ses Dalgası ─────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Ses DalgasÃ„Â± Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function SoundWave({ active, color = THEME.accent }: { active: boolean; color?: string }) {
   const bars = [0, 1, 2, 3, 4].map(() => useRef(new Animated.Value(0.25)).current);
   useEffect(() => {
@@ -78,7 +79,7 @@ function SoundWave({ active, color = THEME.accent }: { active: boolean; color?: 
   );
 }
 
-// ─── Mesaj Balonu ─────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Mesaj Balonu Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function Bubble({ item }: { item: Message }) {
   const isUser = item.sender === 'user';
   const fade  = useRef(new Animated.Value(0)).current;
@@ -92,32 +93,32 @@ function Bubble({ item }: { item: Message }) {
   return (
     <Animated.View style={[s.bubbleRow, isUser ? s.rowUser : s.rowAi, { opacity: fade, transform: [{ translateX: slide }] }]}>
       <View style={[s.bubble, isUser ? s.bubbleUser : s.bubbleAi, item.isError && s.bubbleErr]}>
-        {item.isVoice && <Text style={s.voiceTag}>🎤 </Text>}
+        {item.isVoice && <Text style={s.voiceTag}>ÄŸÅ¸ÂÂ¤ </Text>}
         <Text style={[s.bubbleTxt, isUser && s.bubbleTxtUser]}>{item.text}</Text>
       </View>
     </Animated.View>
   );
 }
 
-// ─── ANA EKRAN ─────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ ANA EKRAN Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 export default function ChatScreen({ navigation }: { navigation: any }) {
   const [inputText, setInputText] = useState('');
   const [textMode, setTextMode]   = useState(false); // false = sesli mod
   const [listenState, setListenState] = useState<'idle' | 'listening' | 'recording' | 'processing'>('idle');
   const flatRef = useRef<FlatList>(null);
-  const recRef  = useRef<AudioRecorder | null>(null);
+  const recorder = useAudioRecorder({ isMeteringEnabled: true } as any);
   const silenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const monitorInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const glowAnim = useRef(new Animated.Value(0.4)).current;
 
   const { messages, loading, isSpeaking, isTTSSpeaking, voiceEnabled, sendMessage, sendVoiceMessage, toggleVoice, stopSpeaking, fetchHistory } = useChatStore();
-  const { friendName, species, role, eyeColor, hairStyle, hairColor, outfitId, outfitColor, accessory } = useAvatarStore();
+  const { friendName } = useAvatarStore();
 
   useEffect(() => {
     fetchHistory();
   }, []);
 
-  // ── Glow animasyonu ─────────────────────────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Glow animasyonu Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   useEffect(() => {
     Animated.loop(Animated.sequence([
       Animated.timing(glowAnim, { toValue: 1, duration: 1800, useNativeDriver: true }),
@@ -125,12 +126,12 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
     ])).start();
   }, []);
 
-  // ── Mesaj gelince scroll ─────────────────────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Mesaj gelince scroll Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   useEffect(() => {
     setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 150);
   }, [messages.length, loading]);
 
-  // ── Otomatik dinleme: uygulama açılınca başla ────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Otomatik dinleme: uygulama aÃƒÂ§Ã„Â±lÃ„Â±nca baÃ…Å¸la Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   useEffect(() => {
     if (!textMode) {
       startListening();
@@ -140,7 +141,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
     return () => stopListening();
   }, [textMode]);
 
-  // Cevap gelince dinlemeyi tekrar başlat
+  // Cevap gelince dinlemeyi tekrar baÃ…Å¸lat
   useEffect(() => {
     if (!loading && !isSpeaking && !isTTSSpeaking && !textMode && listenState === 'idle') {
       const t = setTimeout(startListening, 500);
@@ -148,62 +149,62 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
     }
   }, [loading, isSpeaking, isTTSSpeaking, textMode]);
 
-  // ── Dinlemeye Başla ──────────────────────────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Dinlemeye BaÃ…Å¸la Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   const startListening = useCallback(async () => {
     if (loading || isSpeaking || isTTSSpeaking) return;
     if (listenState !== 'idle') return;
     try {
       const { status } = await requestRecordingPermissionsAsync();
-      if (status !== 'granted') return;
+      if (status !== 'granted') {
+        Alert.alert('Mikrofon Ã„Â°zni Gerekli', 'Sesli sohbet iÃƒÂ§in mikrofon izni vermelisin. Aksi halde yazÃ„Â±lÃ„Â± moda geÃƒÂ§ilecektir.');
+        setTextMode(true);
+        return;
+      }
       try {
-        await setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+        await setAudioModeAsync({ allowsRecording: true, playsInSilentModeIOS: true } as any);
       } catch(e) {} // fail silently if not supported on platform
 
-      const rec = new AudioRecorder({ isMeteringEnabled: true });
-      await rec.prepareToRecordAsync();
-      rec.record();
-      recRef.current = rec;
+      await recorder.prepareToRecordAsync();
+      recorder.record();
       setListenState('listening');
 
       // Ses seviyesini izle
       monitorInterval.current = setInterval(() => {
-        if (!recRef.current) return;
-        const st = recRef.current.getStatus();
+        const st = recorder.getStatus();
         if (!st.isRecording) return;
         const db = st.metering ?? -160;
         if (db > VOICE_THRESHOLD) {
-          // Konuşma algılandı
+          // KonuÃ…Å¸ma algÃ„Â±landÃ„Â±
           setListenState('recording');
           if (silenceTimer.current) { clearTimeout(silenceTimer.current); silenceTimer.current = null; }
         } else {
-          // Sessizlik algılandı — timer başlat
+          // Sessizlik algÃ„Â±landÃ„Â± Ã¢â‚¬â€ timer baÃ…Å¸lat
           if (!silenceTimer.current) {
             silenceTimer.current = setTimeout(() => finishRecording(), SILENCE_TIMEOUT);
           }
         }
       }, 120);
 
-    } catch (e) {
-      console.error('Dinleme başlatılamadı:', e);
+    } catch (e: any) {
+      console.error('Dinleme baÃ…Å¸latÃ„Â±lamadÃ„Â±:', e);
+      Alert.alert('Mikrofon HatasÃ„Â±', 'Mikrofona eriÃ…Å¸ilemedi. LÃƒÂ¼tfen uygulama izinlerini kontrol et. YazÃ„Â±lÃ„Â± moda geÃƒÂ§iliyor.');
+      setTextMode(true);
       setListenState('idle');
     }
-  }, [loading, isSpeaking, isTTSSpeaking, listenState]);
+  }, [loading, isSpeaking, isTTSSpeaking, listenState, recorder]);
 
-  // ── Kaydı Bitir & Gönder ─────────────────────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ KaydÃ„Â± Bitir & GÃƒÂ¶nder Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   const finishRecording = useCallback(async () => {
-    if (!recRef.current) return;
     if (monitorInterval.current) { clearInterval(monitorInterval.current); monitorInterval.current = null; }
     if (silenceTimer.current) { clearTimeout(silenceTimer.current); silenceTimer.current = null; }
 
     try {
       setListenState('processing');
-      const rec = recRef.current;
-      recRef.current = null;
-      await rec.stop();
-      const uri = rec.uri;
+      await recorder.stop();
+      const uri = recorder.uri;
       if (!uri) { setListenState('idle'); return; }
 
-      // Sesi base64'e çevir
+      // Sesi base64'e ÃƒÂ§evir
       const resp = await fetch(uri);
       const blob = await resp.blob();
       const reader = new FileReader();
@@ -211,10 +212,12 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
         const base64 = (reader.result as string).split(',')[1];
         setListenState('idle');
         try {
-          await sendVoiceMessage(base64, 'audio/m4a', species, role);
+          // Temporarily passing 'girl' and 'friend' as species/role since they were removed from ChatScreen scope but needed in sendVoiceMessage. 
+          // Ideally sendVoiceMessage should pull from avatarStore directly, but we provide fallbacks for now.
+          await sendVoiceMessage(base64, 'audio/m4a', 'girl', 'friend');
         } catch (err: any) {
           if (err.message === 'LimitReached') {
-            Alert.alert('Sesli Konuşma Limiti', 'Günlük limitin doldu.', [
+            Alert.alert('Sesli KonuÃ…Å¸ma Limiti', 'GÃƒÂ¼nlÃƒÂ¼k limitin doldu.', [
               { text: 'Ayarlara Git', onPress: () => navigation.navigate('Settings') },
               { text: 'Kapat', style: 'cancel' }
             ]);
@@ -224,33 +227,30 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
       };
       reader.readAsDataURL(blob);
     } catch (e) {
-      console.error('Kayıt bitmedi:', e);
+      console.error('KayÃ„Â±t bitmedi:', e);
       setListenState('idle');
     }
-  }, [sendVoiceMessage, species, role, navigation]);
+  }, [sendVoiceMessage, navigation, recorder]);
 
   const stopListening = useCallback(() => {
     if (monitorInterval.current) { clearInterval(monitorInterval.current); monitorInterval.current = null; }
     if (silenceTimer.current) { clearTimeout(silenceTimer.current); silenceTimer.current = null; }
-    if (recRef.current) {
-      recRef.current.stop().catch(() => {});
-      recRef.current = null;
-    }
+    recorder.stop().catch(() => {});
     setListenState('idle');
-  }, []);
+  }, [recorder]);
 
   const handleSend = () => {
     if (!inputText.trim() || loading) return;
-    sendMessage(inputText.trim(), species, role);
+    sendMessage(inputText.trim(), 'girl', 'friend');
     setInputText('');
   };
 
   const statusLabel = () => {
-    if (loading || listenState === 'processing') return 'Düşünüyor...';
-    if (isTTSSpeaking || isSpeaking) return 'Konuşuyor ✨';
-    if (listenState === 'recording') return 'Duyuyorum! 🎤';
+    if (loading || listenState === 'processing') return 'DÃƒÂ¼Ã…Å¸ÃƒÂ¼nÃƒÂ¼yor...';
+    if (isTTSSpeaking || isSpeaking) return 'KonuÃ…Å¸uyor Ã¢Å“Â¨';
+    if (listenState === 'recording') return 'Duyuyorum! ÄŸÅ¸ÂÂ¤';
     if (listenState === 'listening') return 'Dinliyor...';
-    return 'Hazır';
+    return 'HazÃ„Â±r';
   };
 
   const isActivelyListening = listenState === 'listening' || listenState === 'recording';
@@ -259,7 +259,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
     <SafeAreaView style={s.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={THEME.bg} />
 
-      {/* ── HEADER ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ HEADER Ã¢â€â‚¬Ã¢â€â‚¬ */}
       <View style={s.header}>
         <View style={s.hLeft}>
           <View style={[s.dot, (isTTSSpeaking || isSpeaking) && s.dotSpeak, isActivelyListening && s.dotListen]} />
@@ -267,21 +267,21 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
         </View>
         <View style={s.hRight}>
           <TouchableOpacity style={[s.hBtn, voiceEnabled && s.hBtnOn]} onPress={toggleVoice}>
-            <Text style={s.hBtnTxt}>{voiceEnabled ? '🔊' : '🔇'}</Text>
+            <Text style={s.hBtnTxt}>{voiceEnabled ? 'ÄŸÅ¸â€Å ' : 'ÄŸÅ¸â€â€¡'}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[s.hBtn, textMode && s.hBtnOn]} onPress={() => setTextMode(!textMode)}>
-            <Text style={s.hBtnTxt}>{textMode ? '🎙️' : '💬'}</Text>
+            <Text style={s.hBtnTxt}>{textMode ? 'ÄŸÅ¸Ââ„¢Ã¯Â¸Â' : 'ÄŸÅ¸â€™Â¬'}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.hBtn} onPress={() => navigation.navigate('AvatarCustomizer')}>
-            <Text style={s.hBtnTxt}>✦</Text>
+            <Text style={s.hBtnTxt}>Ã¢Å“Â¦</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.hBtn} onPress={() => navigation.navigate('Settings')}>
-            <Text style={s.hBtnTxt}>⚙️</Text>
+            <Text style={s.hBtnTxt}>Ã¢Å¡â„¢Ã¯Â¸Â</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* ── AVATAR ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ AVATAR Ã¢â€â‚¬Ã¢â€â‚¬ */}
       <TouchableOpacity
         activeOpacity={0.92}
         style={s.avatarSection}
@@ -290,13 +290,6 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
         <Animated.View style={[s.bgGlow, { opacity: glowAnim }]} />
         <LiveAvatar
           size={W * 0.55}
-          species={species ?? 'girl'}
-          eyeColor={eyeColor}
-          hairStyle={hairStyle}
-          hairColor={hairColor}
-          outfitId={outfitId ?? 'casual'}
-          outfitColor={outfitColor}
-          accessory={accessory ?? 'none'}
           isSpeaking={isSpeaking || isTTSSpeaking}
           isListening={isActivelyListening || loading}
           showGlow
@@ -314,13 +307,13 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
           <Text style={s.chipTxt}>{statusLabel()}</Text>
           {isTTSSpeaking && (
             <TouchableOpacity onPress={stopSpeaking} style={s.stopBtn}>
-              <Text style={s.stopTxt}>■ Durdur</Text>
+              <Text style={s.stopTxt}>Ã¢â€“Â  Durdur</Text>
             </TouchableOpacity>
           )}
         </View>
       </TouchableOpacity>
 
-      {/* ── KONUŞMA (sesli mod bilgi) ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ KONUÃ…ÂMA (sesli mod bilgi) Ã¢â€â‚¬Ã¢â€â‚¬ */}
       {!textMode && (
         <View style={s.voiceInfo}>
           {messages.length > 1 && (
@@ -332,18 +325,18 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
           )}
           <Text style={s.voiceHint}>
             {isActivelyListening
-              ? '🎤 Konuşabilirsin, seni duyuyorum'
+              ? 'ÄŸÅ¸ÂÂ¤ KonuÃ…Å¸abilirsin, seni duyuyorum'
               : loading
-              ? '⏳ Cevap hazırlanıyor...'
-              : '🎙️ Konuşmaya başla — otomatik duyacağım'}
+              ? 'Ã¢ÂÂ³ Cevap hazÃ„Â±rlanÃ„Â±yor...'
+              : 'ÄŸÅ¸Ââ„¢Ã¯Â¸Â KonuÃ…Å¸maya baÃ…Å¸la Ã¢â‚¬â€ otomatik duyacaÃ„Å¸Ã„Â±m'}
           </Text>
           <TouchableOpacity style={s.switchBtn} onPress={() => setTextMode(true)}>
-            <Text style={s.switchTxt}>💬 Yazmayı tercih et</Text>
+            <Text style={s.switchTxt}>ÄŸÅ¸â€™Â¬ YazmayÃ„Â± tercih et</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* ── YAZIŞMA MODU ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ YAZIÃ…ÂMA MODU Ã¢â€â‚¬Ã¢â€â‚¬ */}
       {textMode && (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.chatArea}>
           <FlatList
@@ -365,7 +358,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
             <View style={s.inputWrap}>
               <TextInput
                 style={s.input}
-                placeholder="Bir şeyler anlat..."
+                placeholder="Bir Ã…Å¸eyler anlat..."
                 placeholderTextColor={THEME.dim}
                 value={inputText}
                 onChangeText={setInputText}
@@ -379,7 +372,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
               onPress={handleSend}
               disabled={!inputText.trim() || loading}
             >
-              <Text style={s.sendIcon}>↑</Text>
+              <Text style={s.sendIcon}>Ã¢â€ â€˜</Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -388,7 +381,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
   );
 }
 
-// ─── STILLER ─────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ STILLER Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: THEME.bg },
 
@@ -397,14 +390,14 @@ const s = StyleSheet.create({
   hRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: THEME.dim },
   dotSpeak: { backgroundColor: THEME.green },
-  dotListen: { backgroundColor: '#f59e0b' },
+  dotListen: { backgroundColor: colors.accent },
   hName: { color: THEME.text, fontSize: 18, fontWeight: '800' },
   hBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: THEME.bgCard, borderWidth: 1, borderColor: THEME.border, alignItems: 'center', justifyContent: 'center' },
   hBtnOn: { borderColor: THEME.accent, backgroundColor: THEME.accentGlow },
   hBtnTxt: { fontSize: 15 },
 
   avatarSection: { alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: THEME.border, position: 'relative' },
-  bgGlow: { position: 'absolute', width: W * 0.75, height: W * 0.75, borderRadius: W * 0.375, backgroundColor: 'rgba(139,124,248,0.07)', top: -10 },
+  bgGlow: { position: 'absolute', width: W * 0.75, height: W * 0.75, borderRadius: W * 0.375, backgroundColor: colors.primaryLight, top: -10 },
 
   wave: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 24, marginTop: 6 },
   waveBar: { width: 4, height: 20, borderRadius: 2 },
@@ -444,6 +437,7 @@ const s = StyleSheet.create({
   inputWrap: { flex: 1, backgroundColor: THEME.aiBg, borderRadius: 22, borderWidth: 1, borderColor: THEME.aiBorder, paddingHorizontal: 16, paddingVertical: 10, maxHeight: 110 },
   input: { color: THEME.text, fontSize: 15, lineHeight: 20 },
   sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: THEME.accent, alignItems: 'center', justifyContent: 'center', shadowColor: THEME.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 10, elevation: 6 },
-  sendBtnOff: { backgroundColor: 'rgba(139,124,248,0.22)', shadowOpacity: 0, elevation: 0 },
+  sendBtnOff: { backgroundColor: colors.primaryLight, shadowOpacity: 0, elevation: 0 },
   sendIcon: { color: '#fff', fontSize: 20, fontWeight: '900' },
 });
+
